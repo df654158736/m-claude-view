@@ -32,8 +32,8 @@ class ToolConfig:
 @dataclass
 class MCPServerConfig:
     command: str
-    args: list = None
-    env: dict = None
+    args: Optional[list] = None
+    env: Optional[dict] = None
 
 
 @dataclass
@@ -46,6 +46,8 @@ class Config:
 
 def load_config(config_path: str = "config.yaml") -> Config:
     """Load configuration from YAML file."""
+    import os
+
     path = Path(config_path)
     if not path.exists():
         raise FileNotFoundError(f"Config file not found: {config_path}")
@@ -53,8 +55,17 @@ def load_config(config_path: str = "config.yaml") -> Config:
     with open(path) as f:
         data = yaml.safe_load(f)
 
+    # Validate and get API key (support env var fallback)
+    llm_data = data.get("llm", {})
+    api_key = llm_data.get("api_key") or os.environ.get("LLM_API_KEY")
+    if not api_key:
+        raise ValueError("api_key is required in config.llm or LLM_API_KEY environment variable")
+
+    # Remove api_key from llm_data to avoid duplication
+    llm_config_data = {k: v for k, v in llm_data.items() if k != "api_key"}
+
     return Config(
-        llm=LLMConfig(**data.get("llm", {})),
+        llm=LLMConfig(api_key=api_key, **llm_config_data),
         display=DisplayConfig(**data.get("display", {})),
         tools=[ToolConfig(**t) for t in data.get("tools", [])],
         mcp=data.get("mcp", {}).get("servers", {})
