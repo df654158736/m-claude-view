@@ -34,9 +34,12 @@ class BashTool(Tool):
                 text=True,
                 timeout=timeout
             )
-            output = result.stdout or result.stderr
+            # 同时显示 stdout 和 stderr
+            output = result.stdout
+            if result.stderr:
+                output += f"\nStderr:\n{result.stderr}"
             return f"Exit code: {result.returncode}\nOutput:\n{output}"
         except subprocess.TimeoutExpired:
             return f"Error: Command timed out after {timeout} seconds"
-        except Exception as e:
+        except (OSError, ValueError) as e:
             return f"Error: {str(e)}"
