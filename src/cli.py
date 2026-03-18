@@ -80,7 +80,15 @@ def main():
         print("开始执行任务...")
         print("=" * 60)
 
-        result = engine.run(task)
+        try:
+            result = engine.run(task)
+        except KeyboardInterrupt:
+            print("\n任务被中断")
+            continue
+        except Exception as e:
+            print(f"\n✗ 任务执行失败: {e}")
+            logger.exception("Task execution failed")
+            continue
 
         print()
         print("=" * 60)
