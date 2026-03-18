@@ -1,0 +1,19 @@
+# config.yaml
+llm:
+  api_key: "sk-3d8302efddc24a9494d1858d8d5ec0f8"
+  base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+  model: "qwen-max"
+  max_iterations: 20
+  temperature: 0.7
+
+display:
+  thinking_collapsed: true
+  log_level: "verbose"
+
+tools:
+  - name: bash
+    enabled: true
+    timeout: 30
+
+mcp:
+  servers: {}
