@@ -36,7 +36,11 @@ class LLMClient:
         if tools:
             params["tools"] = tools
 
-        response = self.client.chat.completions.create(**params)
+        try:
+            response = self.client.chat.completions.create(**params)
+        except Exception as e:
+            raise RuntimeError(f"LLM API 调用失败: {e}") from e
+
         return response.choices[0]
 
     @staticmethod
@@ -48,10 +52,15 @@ class LLMClient:
         if message.tool_calls:
             tool_calls = []
             for tc in message.tool_calls:
+                try:
+                    arguments = json.loads(tc.function.arguments)
+                except json.JSONDecodeError:
+                    arguments = {"error": "Failed to parse arguments"}
+
                 tool_calls.append(ToolCall(
                     id=tc.id,
                     name=tc.function.name,
-                    arguments=json.loads(tc.function.arguments)
+                    arguments=arguments
                 ))
             return None, tool_calls
 
