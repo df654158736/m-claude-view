@@ -87,7 +87,7 @@ class ReActEngine:
                 logger.info(f"Executing tool: {tc.name} with args: {tc.arguments}")
                 try:
                     result = self.tool_registry.execute(tc.name, tc.arguments)
-                    logger.info(f"Tool result: {result[:200]}...")
+                    logger.info(f"Tool result: {str(result)[:200]}...")
                 except Exception as e:
                     result = f"Error executing tool: {str(e)}"
                     logger.error(result)
