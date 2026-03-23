@@ -18,6 +18,11 @@ class LLMConfig:
 class DisplayConfig:
     thinking_collapsed: bool = True
     log_level: str = "verbose"
+    packet_log_mode: str = "json"
+    color_logs: bool = True
+    json_pretty: bool = False
+    json_indent: int = 2
+    packet_log_file: str = "logs/packets.jsonl"
 
 
 @dataclass

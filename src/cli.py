@@ -53,7 +53,7 @@ def main():
     # Setup components
     llm_client = LLMClient(config.llm)
     tool_registry = setup_tools(config)
-    engine = ReActEngine(llm_client, tool_registry, config.llm)
+    engine = ReActEngine(llm_client, tool_registry, config)
 
     print(f"✓ 工具注册完成: {list(tool_registry._tools.keys())}")
     print()

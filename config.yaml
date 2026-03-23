@@ -1,7 +1,7 @@
 # config.yaml
 llm:
   # 从 LLM_API_KEY 环境变量读取，或在此处填写 API Key
-  api_key: ""
+  api_key: "sk-3d8302efddc24a9494d1858d8d5ec0f8"
   base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
   model: "qwen-max"
   max_iterations: 20
@@ -10,6 +10,11 @@ llm:
 display:
   thinking_collapsed: true
   log_level: "verbose"
+  packet_log_mode: "both"
+  color_logs: true
+  json_pretty: true
+  json_indent: 2
+  packet_log_file: "logs/packets.jsonl"
 
 tools:
   - name: bash
