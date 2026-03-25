@@ -1,21 +1,23 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- `src/` contains runtime code for the ReAct agent:
-  - `src/cli.py` is the interactive entry point.
-  - `src/react_engine.py` runs the reasoning/tool loop.
-  - `src/llm_client.py` wraps chat completion calls.
-  - `src/tools/` holds tool interfaces and implementations (`base.py`, `registry.py`, `bash.py`).
-- `tests/` contains pytest suites (`test_*.py`) covering core modules and tool behavior.
-- `config.yaml` stores local runtime config; `requirements.txt` lists minimal dependencies.
-- `docs/plans/` keeps design/implementation plans and should remain documentation-only.
+- `backend/src/` contains runtime code for the ReAct agent:
+  - `backend/src/cli.py` is the interactive entry point.
+  - `backend/src/react_engine.py` runs the reasoning/tool loop.
+  - `backend/src/llm_client.py` wraps chat completion calls.
+  - `backend/src/tools/` holds tool interfaces and implementations (`base.py`, `registry.py`, `bash.py`).
+- `backend/tests/` contains pytest suites (`test_*.py`) covering core modules and tool behavior.
+- `backend/config.yaml` stores runtime config; `backend/requirements.txt` lists dependencies.
+- `frontend/` stores static dashboard assets (`index.html`, `app.css`, `app.js`).
+- `docs/` keeps design and integration documentation (for example MCP integration notes).
 
 ## Build, Test, and Development Commands
 - `python -m venv .venv && source .venv/bin/activate` creates/activates local env.
-- `pip install -r requirements.txt` installs runtime deps (`openai`, `pyyaml`).
-- `pytest -q` runs all tests.
-- `pytest tests/test_react_engine.py -v` runs a focused test file while iterating.
-- `python -m src.cli` starts the interactive REPL agent from repo root.
+- `pip install -r backend/requirements.txt` installs runtime deps (`openai`, `pyyaml`).
+- `PYTHONPATH=backend pytest -q backend/tests` runs all tests.
+- `PYTHONPATH=backend pytest -q backend/tests/test_react_engine.py -v` runs a focused suite.
+- `PYTHONPATH=backend python -m src.cli` starts the interactive REPL.
+- `./start.sh` starts web mode and serves frontend from `frontend/`.
 
 ## Coding Style & Naming Conventions
 - Follow existing Python style: 4-space indentation, clear docstrings, and type hints where useful.
@@ -25,7 +27,7 @@
 
 ## Testing Guidelines
 - Framework: `pytest` with standard assertions and `unittest.mock` for external dependencies.
-- Add tests alongside code changes in `tests/test_<module>.py`.
+- Add tests alongside code changes in `backend/tests/test_<module>.py`.
 - Name tests by behavior, e.g., `test_tool_registry_execute`.
 - Cover success and failure paths, especially around tool execution and API error handling.
 
@@ -40,5 +42,5 @@
 
 ## Security & Configuration Tips
 - Do not commit real API keys in `config.yaml`.
-- Prefer environment variable fallback: `LLM_API_KEY` (supported by `src/config.py`).
+- Prefer environment variable fallback: `LLM_API_KEY` (supported by `backend/src/config.py`).
 - Treat tool command execution paths carefully; validate new tools before enabling by default.
