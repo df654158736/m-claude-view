@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Trace Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <div class="grain"></div>
+
+  <header class="topbar">
+    <div class="title-wrap">
+      <div>
+        <p class="kicker">MCLAUDE · OBSERVABILITY</p>
+        <h1>Agent Trace Dashboard</h1>
+      </div>
+      <div class="status-cluster">
+        <span id="pollState" class="live-dot is-on" aria-hidden="true"></span>
+        <p id="status" class="status">加载中...</p>
+      </div>
+    </div>
+
+    <div class="controls" aria-label="控制台操作区">
+      <label class="control-group">
+        <span>日志条数</span>
+        <input id="limitInput" type="number" value="500" min="100" step="50">
+      </label>
+      <input id="questionInput" type="text" placeholder="输入问题并发送给模型">
+      <button id="askBtn" class="primary">发送</button>
+      <button id="refreshBtn">刷新</button>
+      <button id="pollBtn">暂停自动刷新</button>
+      <button id="clearBtn" class="danger">清空</button>
+    </div>
+
+    <div class="task-bar">
+      <div class="task-head">
+        <span id="taskStatus" class="status"></span>
+        <span class="status final-tag">最终回答</span>
+      </div>
+      <pre id="answerView">暂无回答</pre>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="panel">
+      <div class="panel-head">
+        <h2>问题轮次</h2>
+        <span id="runCount" class="muted"></span>
+      </div>
+      <div id="runsList" class="scroll"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>事件时间线</h2>
+        <span id="eventCount" class="muted"></span>
+      </div>
+      <div id="timeline" class="scroll timeline"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>JSON 详情</h2>
+        <div class="panel-actions">
+          <button id="expandAllBtn" class="mini">全部展开</button>
+          <button id="collapseAllBtn" class="mini">全部折叠</button>
+        </div>
+      </div>
+      <div id="jsonTree" class="scroll json-tree">点击时间线中的事件查看详情</div>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

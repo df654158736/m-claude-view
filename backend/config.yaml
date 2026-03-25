@@ -1,0 +1,39 @@
+# config.yaml
+llm:
+  # 建议通过环境变量配置（LLM_API_KEY/LLM_BASE_URL/LLM_MODEL/LLM_MAX_ITERATIONS/LLM_TEMPERATURE）
+  # 这里保留空值占位，实际运行读取环境变量
+  api_key: ""
+  base_url: ""
+  model: ""
+  max_iterations: ""
+  temperature: ""
+
+display:
+  thinking_collapsed: true
+  log_level: "verbose"
+  packet_log_mode: "both"
+  color_logs: true
+  json_pretty: true
+  json_indent: 2
+  packet_log_file: "logs/packets.jsonl"
+
+tools:
+  - name: bash
+    enabled: true
+    timeout: 30
+  - name: playwright_mcp
+    enabled: true
+    timeout: 180
+
+mcp:
+  servers:
+    playwright:
+      type: "http"
+      command: "npx"
+      args:
+        - "-y"
+        - "@playwright/mcp@latest"
+        - "--headless"
+      url: "http://localhost/mcp"
+      ready_timeout: 120
+      env: {}
