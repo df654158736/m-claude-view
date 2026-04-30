@@ -4,5 +4,5 @@ __pycache__/
 .pytest_cache/
 logs/
 .env
-.claude/
 .playwright-mcp/
+*Zone.Identifier
