@@ -21,6 +21,8 @@ tools:
   - name: bash
     enabled: true
     timeout: 30
+  - name: read_file
+    enabled: true
   - name: playwright_mcp
     enabled: true
     timeout: 180

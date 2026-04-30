@@ -16,7 +16,7 @@ def test_mcp_server_tool_stdio():
             "args": [str(fake_server)],
         },
     )
-    result = tool.execute(action="list_tools", timeout=10)
+    result = tool.execute({"action": "list_tools", "timeout": 10})
     payload = json.loads(result)
     assert payload["tools"][0]["name"] == "browser_navigate"
     tool.close()
@@ -55,7 +55,7 @@ def test_mcp_server_tool_http():
             server_name="httpfake",
             server_conf={"type": "http", "url": "http://localhost:9999/mcp"},
         )
-        result = tool.execute(action="list_tools", timeout=10)
+        result = tool.execute({"action": "list_tools", "timeout": 10})
         payload = json.loads(result)
         assert payload["tools"][0]["name"] == "http_tool"
         tool.close()

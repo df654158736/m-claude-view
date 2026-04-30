@@ -19,7 +19,7 @@ from src.infrastructure.tools.base import Tool
 class MCPServerTool(Tool):
     """A generic MCP server adapter."""
 
-    parameters = {
+    _mcp_parameters = {
         "type": "object",
         "properties": {
             "action": {
@@ -45,6 +45,10 @@ class MCPServerTool(Tool):
         "required": ["action"],
     }
 
+    @property
+    def parameters(self) -> dict:
+        return self._mcp_parameters
+
     def __init__(self, server_name: str, server_conf: dict):
         self.server_name = server_name
         self.name = f"{server_name}_mcp"
@@ -65,7 +69,8 @@ class MCPServerTool(Tool):
             self._prepare_managed_http_endpoint()
         atexit.register(self.close)
 
-    def execute(self, **kwargs: Any) -> str:
+    def execute(self, args: Any) -> str:
+        kwargs = args if isinstance(args, dict) else {}
         action = str(kwargs.get("action", ""))
         tool_name_raw = kwargs.get("tool_name")
         tool_name = str(tool_name_raw) if tool_name_raw is not None else None

@@ -1,10 +1,10 @@
 """Tool setup helpers shared by CLI and HTTP service.
 
 Built-in tools are auto-discovered via ``Tool.__init_subclass__``.
-Any module under ``infrastructure/tools/`` that defines a ``Tool``
-subclass with a non-empty ``name`` is automatically importable.
+Any module under ``infrastructure/tools/builtin/`` that defines a
+``Tool`` subclass with a non-empty ``name`` is automatically imported.
 New tools only need to:
-  1. Create a file in this package (e.g. ``read_file.py``).
+  1. Create a file in ``tools/builtin/`` (e.g. ``read_file.py``).
   2. Define a ``Tool`` subclass with ``name = "read_file"``.
   3. Add ``name: read_file`` + ``enabled: true`` in ``config.yaml``.
 """
@@ -22,8 +22,8 @@ logger = logging.getLogger("react_agent")
 
 
 def _import_all_tool_modules() -> None:
-    """Import every module in the tools package so subclasses register."""
-    for module_info in pkgutil.iter_modules(_tools_pkg.__path__, _tools_pkg.__name__ + "."):
+    """Recursively import every module in the tools package so subclasses register."""
+    for module_info in pkgutil.walk_packages(_tools_pkg.__path__, _tools_pkg.__name__ + "."):
         try:
             importlib.import_module(module_info.name)
         except Exception:  # noqa: BLE001

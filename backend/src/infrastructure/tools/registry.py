@@ -11,22 +11,35 @@ class ToolRegistry:
         self._tools: Dict[str, Tool] = {}
 
     def register(self, tool: Tool):
-        """Register a tool."""
         self._tools[tool.name] = tool
 
     def get_tool(self, name: str) -> Tool:
-        """Get a tool by name."""
         if name not in self._tools:
             raise ValueError(f"Tool not found: {name}")
         return self._tools[name]
 
     def execute(self, name: str, arguments: dict) -> str:
-        """Execute a tool by name with given arguments."""
         tool = self.get_tool(name)
-        return tool.execute(**arguments)
+        parsed = tool.parse_args(arguments)
+        return tool.execute(parsed)
+
+    def summary(self) -> list[dict]:
+        """Return a summary of all registered tools for startup reporting."""
+        items = []
+        for tool in self._tools.values():
+            params = tool.parameters.get("properties", {})
+            param_names = list(params.keys())
+            required = tool.parameters.get("required", [])
+            items.append({
+                "name": tool.name,
+                "type": type(tool).__name__,
+                "description": tool.description,
+                "params": param_names,
+                "required": required,
+            })
+        return items
 
     def get_tool_schemas(self) -> List[dict]:
-        """Get tool schemas for LLM."""
         schemas = []
         for tool in self._tools.values():
             schemas.append(

@@ -22,3 +22,45 @@ def build_agent_service(config):
     """Assemble async task service for HTTP entrypoints."""
     engine = build_engine(config)
     return AgentTaskService(engine=engine)
+
+
+def print_startup_report(config, engine, *, log_path=None, host=None, port=None) -> None:
+    """Print a structured startup report to stdout."""
+    sep = "=" * 60
+    print(sep)
+    print("  MClaude ReAct Agent")
+    print(sep)
+    print()
+
+    # LLM
+    print("[LLM]")
+    print(f"  Model:          {config.llm.model}")
+    print(f"  Base URL:       {config.llm.base_url}")
+    print(f"  Max iterations: {config.llm.max_iterations}")
+    print(f"  Temperature:    {config.llm.temperature}")
+    print()
+
+    # Tools
+    tools = engine.tool_registry.summary()
+    print(f"[Tools] {len(tools)} registered")
+    for t in tools:
+        req = ", ".join(t["required"]) if t["required"] else "-"
+        all_params = ", ".join(t["params"]) if t["params"] else "-"
+        print(f"  - {t['name']:20s} [{t['type']}]")
+        print(f"    {t['description'][:60]}")
+        print(f"    params: {all_params}  required: {req}")
+    print()
+
+    # Display / Log
+    print("[Display]")
+    print(f"  Log mode:       {config.display.packet_log_mode}")
+    if log_path:
+        print(f"  Log file:       {log_path}")
+    print()
+
+    # Server (HTTP only)
+    if host and port:
+        print(f"[Server]")
+        print(f"  Listening:      http://{host}:{port}")
+        print(f"  API endpoint:   POST /api/ask")
+    print(sep)

@@ -1,11 +1,12 @@
 import pytest
-from src.infrastructure.tools.bash import BashTool
+from src.infrastructure.tools.builtin.bash import BashTool
 
 
 def test_bash_tool_execute():
     """Test bash tool can execute commands."""
     tool = BashTool()
-    result = tool.execute(command="echo hello")
+    args = tool.parse_args({"command": "echo hello"})
+    result = tool.execute(args)
     assert "hello" in result
 
 

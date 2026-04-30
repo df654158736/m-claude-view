@@ -8,7 +8,7 @@ from fastapi import Body, FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from src.bootstrap.container import build_agent_service, load_settings
+from src.bootstrap.container import build_agent_service, build_engine, load_settings, print_startup_report
 from src.infrastructure.storage.packet_log_repo import build_runs, clear_packet_log, group_packets_by_user, read_packets
 
 
@@ -91,9 +91,10 @@ def main() -> None:
     agent_service = build_agent_service(config)
     app = create_app(log_path, agent_service)
 
-    print(f"FastAPI dashboard running on http://{args.host}:{args.port}")
-    print(f"Reading packet log file: {log_path}")
-    print("Agent API ready: POST /api/ask")
+    print_startup_report(
+        config, agent_service.engine,
+        log_path=log_path, host=args.host, port=args.port,
+    )
 
     import uvicorn
 

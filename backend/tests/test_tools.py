@@ -1,4 +1,5 @@
 import pytest
+from pydantic import BaseModel, Field
 from src.infrastructure.tools.base import Tool
 from src.infrastructure.tools.registry import ToolRegistry
 
@@ -10,9 +11,8 @@ def test_tool_registry_register():
     class MockTool(Tool):
         name = "mock_tool"
         description = "A mock tool"
-        parameters = {"type": "object", "properties": {}}
 
-        def execute(self, **kwargs):
+        def execute(self, args):
             return "executed"
 
     registry.register(MockTool())
@@ -26,9 +26,11 @@ def test_tool_registry_get_schema():
     class MockTool(Tool):
         name = "mock_tool"
         description = "A mock tool"
-        parameters = {"type": "object", "properties": {}}
 
-        def execute(self, **kwargs):
+        class Input(BaseModel):
+            query: str = Field(description="test query")
+
+        def execute(self, args):
             return "executed"
 
     registry.register(MockTool())
@@ -36,6 +38,7 @@ def test_tool_registry_get_schema():
 
     assert len(schema) == 1
     assert schema[0]["function"]["name"] == "mock_tool"
+    assert "query" in schema[0]["function"]["parameters"]["properties"]
 
 
 def test_tool_registry_execute():
@@ -45,9 +48,8 @@ def test_tool_registry_execute():
     class MockTool(Tool):
         name = "mock_tool"
         description = "A mock tool"
-        parameters = {"type": "object", "properties": {}}
 
-        def execute(self, **kwargs):
+        def execute(self, args):
             return "executed"
 
     registry.register(MockTool())
