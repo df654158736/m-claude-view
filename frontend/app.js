@@ -19,6 +19,12 @@ const jsonTreeEl = document.getElementById('jsonTree');
 
 const expandAllBtn = document.getElementById('expandAllBtn');
 const collapseAllBtn = document.getElementById('collapseAllBtn');
+const copyJsonBtn = document.getElementById('copyJsonBtn');
+const uploadBtn = document.getElementById('uploadBtn');
+const fileInput = document.getElementById('fileInput');
+const fileBar = document.getElementById('fileBar');
+const fileListEl = document.getElementById('fileList');
+const fileCountEl = document.getElementById('fileCount');
 
 const state = {
   polling: true,
@@ -118,6 +124,7 @@ function renderRunList() {
     item.addEventListener('click', () => {
       state.selectedRunId = run.id;
       state.selectedEventIndex = null;
+      renderRunList();
       renderTimeline();
     });
 
@@ -244,9 +251,13 @@ function buildJsonTree(value, key, parentObj) {
     return line;
   }
 
+  const isLlmRequest = parentObj && parentObj.type === 'llm_request';
+  const shouldCollapse = isLlmRequest && key === 'tools';
+  const shouldReverse = isLlmRequest && key === 'messages' && isArray;
+
   const details = document.createElement('details');
   details.className = 'json-block';
-  details.open = true;
+  details.open = !shouldCollapse;
 
   const summary = document.createElement('summary');
   const size = isArray ? value.length : Object.keys(value).length;
@@ -259,8 +270,10 @@ function buildJsonTree(value, key, parentObj) {
   details.appendChild(node);
 
   if (isArray) {
-    value.forEach((item, index) => {
-      node.appendChild(buildJsonTree(item, '[' + index + ']', value));
+    const items = shouldReverse ? [...value].reverse() : value;
+    items.forEach((item, index) => {
+      const originalIndex = shouldReverse ? value.length - 1 - index : index;
+      node.appendChild(buildJsonTree(item, '[' + originalIndex + ']', value));
     });
   } else {
     Object.keys(value).forEach((k) => {
@@ -290,8 +303,11 @@ function deepParseJsonStrings(obj) {
   return obj;
 }
 
+var currentDetailEvent = null;
+
 function renderEventDetail(event) {
   jsonTreeEl.innerHTML = '';
+  currentDetailEvent = event;
   const expanded = deepParseJsonStrings(event);
   jsonTreeEl.appendChild(buildJsonTree(expanded, null));
 }
@@ -460,7 +476,78 @@ expandAllBtn.addEventListener('click', () => {
   });
 });
 
+copyJsonBtn.addEventListener('click', () => {
+  if (!currentDetailEvent) return;
+  const text = JSON.stringify(currentDetailEvent, null, 2);
+  navigator.clipboard.writeText(text).then(() => {
+    copyJsonBtn.textContent = '已复制';
+    setTimeout(() => { copyJsonBtn.textContent = '复制'; }, 1200);
+  });
+});
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function renderFileList(files) {
+  fileListEl.innerHTML = '';
+  if (!files.length) {
+    fileBar.hidden = true;
+    return;
+  }
+  fileBar.hidden = false;
+  fileCountEl.textContent = files.length + ' 个';
+  files.forEach(function (f) {
+    const chip = document.createElement('span');
+    chip.className = 'file-chip';
+    chip.title = f.path;
+    chip.innerHTML =
+      '<span>' + f.name + '</span>' +
+      '<span class="file-size">' + formatFileSize(f.size) + '</span>';
+    fileListEl.appendChild(chip);
+  });
+}
+
+async function loadFiles() {
+  try {
+    var resp = await fetch('/api/files');
+    if (!resp.ok) return;
+    var data = await resp.json();
+    renderFileList(data.files || []);
+  } catch (e) { /* ignore */ }
+}
+
+async function uploadFiles(fileList) {
+  for (var i = 0; i < fileList.length; i++) {
+    var formData = new FormData();
+    formData.append('file', fileList[i]);
+    try {
+      var resp = await fetch('/api/upload', { method: 'POST', body: formData });
+      if (!resp.ok) {
+        statusEl.textContent = '上传失败: HTTP ' + resp.status;
+        return;
+      }
+    } catch (e) {
+      statusEl.textContent = '上传失败: ' + e.message;
+      return;
+    }
+  }
+  statusEl.textContent = '上传完成 ' + fileList.length + ' 个文件';
+  await loadFiles();
+}
+
+uploadBtn.addEventListener('click', function () { fileInput.click(); });
+fileInput.addEventListener('change', function () {
+  if (fileInput.files.length) {
+    uploadFiles(fileInput.files);
+    fileInput.value = '';
+  }
+});
+
 refresh();
+loadFiles();
 updatePollingUi();
 setInterval(() => {
   if (!state.polling) return;

@@ -5,7 +5,7 @@ from typing import Any
 
 from src.domain.agent.models import ToolCall
 from src.domain.agent.packet_logger import PacketLogger
-from src.domain.agent.prompt_templates import REACT_SYSTEM_PROMPT
+from src.domain.agent.prompt_templates import MCP_CATALOG_PROMPT, REACT_SYSTEM_PROMPT
 
 
 logger = logging.getLogger("react_agent")
@@ -15,12 +15,10 @@ class ReActEngine:
     """ReAct 核心执行引擎。
 
     设计目标：
-    1. 只负责“推理-行动-观察”的主流程编排，不关心 HTTP/CLI 入口细节。
+    1. 只负责"推理-行动-观察"的主流程编排，不关心 HTTP/CLI 入口细节。
     2. 将日志序列化、可读化输出、文件落盘等横切关注点委托给 PacketLogger。
     3. 保持会话级消息历史，支持多次 run() 共享上下文；需要时可 reset_session() 重置。
     """
-    SYSTEM_PROMPT = REACT_SYSTEM_PROMPT
-
     def __init__(self, llm_client, tool_registry, config):
         """注入依赖并初始化运行态。
 
@@ -35,18 +33,30 @@ class ReActEngine:
         self.config = config
         self.packet_logger = PacketLogger.from_config(config=config, logger=logger)
 
-        # 会话级消息历史：同一个引擎实例多次 run() 会共享上下文。
-        # 这对“连续对话”有价值，但也意味着需要显式 reset 才能“清空历史”。
-        self.messages: list[dict[str, Any]] = [{"role": "system", "content": self.SYSTEM_PROMPT}]
+        self.system_prompt = self._build_system_prompt()
+        self.messages: list[dict[str, Any]] = [{"role": "system", "content": self.system_prompt}]
+
+    def _build_system_prompt(self) -> str:
+        prompt = REACT_SYSTEM_PROMPT
+        try:
+            catalog = self.tool_registry.get_mcp_catalog()
+            if catalog and isinstance(catalog, list):
+                lines = []
+                for entry in catalog:
+                    lines.append(f"- **{entry['name']}** ({entry['server']}): {entry['description'][:80]}")
+                prompt += MCP_CATALOG_PROMPT.format(catalog="\n".join(lines))
+        except (AttributeError, TypeError):
+            pass
+        return prompt
 
     def reset_session(self) -> None:
         """Clear accumulated conversation state and keep only system prompt."""
-        self.messages = [{"role": "system", "content": self.SYSTEM_PROMPT}]
+        self.messages = [{"role": "system", "content": self.system_prompt}]
 
     def build_messages(self, user_task: str) -> list[dict[str, str]]:
         """Build initial messages with system prompt."""
         return [
-            {"role": "system", "content": self.SYSTEM_PROMPT},
+            {"role": "system", "content": self.system_prompt},
             {"role": "user", "content": user_task},
         ]
 
@@ -118,7 +128,7 @@ class ReActEngine:
     def _request_llm(self, iteration: int) -> tuple[str | None, list[ToolCall]]:
         """向模型发起请求并解析响应。
 
-        该方法把“请求日志 + 模型调用 + 响应日志”封装在一起，
+        该方法把"请求日志 + 模型调用 + 响应日志"封装在一起，
         让 run() 主循环保持线性可读。
         """
         tools = self.tool_registry.get_tool_schemas()

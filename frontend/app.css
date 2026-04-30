@@ -638,6 +638,66 @@ details.json-block[open] summary::before {
   }
 }
 
+button.upload {
+  border-color: rgba(107, 231, 176, 0.45);
+  background: linear-gradient(135deg, rgba(20, 80, 60, 0.8), rgba(18, 65, 55, 0.8));
+}
+
+.file-bar {
+  border: 1px solid var(--line-soft);
+  background: linear-gradient(130deg, rgba(17, 24, 40, 0.78), rgba(13, 20, 35, 0.7));
+  border-radius: var(--radius-lg);
+  padding: 10px 12px;
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(10px);
+}
+
+.file-bar-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.file-bar-label {
+  font-family: "Azeret Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.file-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(8, 16, 29, 0.62);
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-family: "Azeret Mono", monospace;
+  color: var(--text-main);
+  cursor: default;
+  transition: border-color 140ms ease;
+}
+
+.file-chip:hover {
+  border-color: rgba(107, 231, 176, 0.5);
+}
+
+.file-chip .file-size {
+  color: var(--text-dim);
+  font-size: 10px;
+}
+
+
 .val-image-wrap {
   display: flex;
   flex-direction: column;

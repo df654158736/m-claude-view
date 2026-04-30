@@ -1,182 +1,189 @@
 # MClaude ReAct Agent
 
-一个面向工程化落地的 ReAct Agent 项目，支持：
-- 多轮推理 + 工具调用（Bash / MCP）
-- FastAPI Web 服务与前端可观测面板
-- 结构化事件日志（JSON / 可读格式 / JSONL 落盘）
+基于 ReAct（Reasoning + Acting）范式的智能体框架，配套实时可观测 Web 面板。
 
-项目目标不是“只跑通一次”，而是保持可维护、可观测、可扩展。
+支持任意 OpenAI 兼容 LLM、内置工具与 MCP 协议工具扩展、结构化事件追踪，开箱即用。
 
-## 核心特性
+## 核心能力
 
-- ReAct 主循环：模型推理、工具执行、结果回填、迭代收敛。
-- 工具体系：统一 `Tool` 抽象 + 注册表 + 工厂装配。
-- Web 控制台：查看问题轮次、事件时间线、JSON 详情，支持提交问题与清空历史。
-- 会话与任务分离：引擎会话历史与异步任务状态独立管理。
-- 配置与密钥分离：模型参数通过环境变量驱动（`.env`）。
+**智能体引擎**
+- ReAct 循环：推理 → 工具调用 → 观察 → 迭代收敛
+- 多轮会话历史，支持跨 run 上下文保持
+- 可配置最大迭代次数、温度等参数
 
-## 技术栈
+**工具体系**
+- Pydantic 声明式工具参数，自动生成 JSON Schema
+- 自动发现注册：新建文件即可添加工具，零配置
+- MCP 工具懒加载：启动时发现 → 按需激活 → 自动注入 schema
+- 内置工具：`bash`（Shell 执行）、`read_file`（文本/PDF 读取）、`load_mcp_tools`（MCP 工具加载器）
 
-- Python 3.10+
-- OpenAI Compatible SDK (`openai`)
-- FastAPI + Uvicorn
-- PyYAML
-- pytest
+**可观测面板**
+- 三栏布局：问题轮次 → 事件时间线 → JSON 结构化详情
+- 实时轮询，支持暂停/恢复
+- 文件上传，自动注入到 Agent 上下文
+- MCP 截图（base64 图片）直接渲染
 
-## 项目结构
+**双入口**
+- Web 服务（FastAPI）：面板 + REST API
+- CLI REPL：终端交互，适合调试
 
-```text
-.
-├─ backend/
-│  ├─ config.yaml
-│  ├─ requirements.txt
-│  ├─ src/
-│  │  ├─ main.py                         # 顶层 HTTP 启动入口
-│  │  ├─ domain/                         # 领域层（核心业务）
-│  │  │  └─ agent/
-│  │  │     ├─ engine.py                 # ReAct 核心流程
-│  │  │     ├─ packet_logger.py          # 结构化日志能力
-│  │  │     ├─ prompt_templates.py       # Prompt 模板
-│  │  │     └─ models.py
-│  │  ├─ application/                    # 应用层（编排）
-│  │  │  ├─ services/agent_task_service.py
-│  │  │  └─ use_cases/run_agent.py
-│  │  ├─ infrastructure/                 # 基础设施层（外部依赖）
-│  │  │  ├─ config/settings.py
-│  │  │  ├─ llm/openai_client.py
-│  │  │  ├─ storage/packet_log_repo.py
-│  │  │  └─ tools/{base,registry,bash,mcp_server,factory}.py
-│  │  ├─ interfaces/                     # 接口层（适配器）
-│  │  │  ├─ http/main.py
-│  │  │  └─ cli/main.py
-│  │  └─ bootstrap/container.py          # 依赖装配
-│  └─ tests/
-├─ frontend/                              # 静态前端
-├─ logs/
-├─ start.sh
-├─ .env.example
-└─ openspec/
+## 架构
+
+```
+backend/src/
+├── domain/agent/            # 核心：ReAct 引擎、模型、Prompt、日志
+├── application/             # 编排：任务服务、用例
+├── infrastructure/          # 外部依赖
+│   ├── llm/                 #   LLM 客户端（OpenAI 兼容）
+│   ├── tools/               #   工具抽象 + 注册表 + MCP 适配
+│   │   ├── base.py          #     Tool 基类（Pydantic + 自动注册）
+│   │   ├── registry.py      #     注册表（执行、延迟加载目录）
+│   │   ├── mcp_server.py    #     MCP 协议适配（stdio / HTTP）
+│   │   ├── mcp_sub_tool.py  #     MCP 子工具代理
+│   │   └── builtin/         #     内置工具（bash, read_file, load_mcp_tools）
+│   ├── config/              #   配置加载（YAML + 环境变量）
+│   └── storage/             #   事件日志读写
+├── interfaces/              # 入口适配
+│   ├── http/                #   FastAPI 路由
+│   └── cli/                 #   交互式 REPL
+└── bootstrap/               # 依赖装配 + 启动自报
+
+frontend/                    # 纯静态前端（HTML + CSS + JS，无构建）
 ```
 
-## 架构说明（简版）
-
-- `domain`：只负责核心规则与流程，不直接依赖 HTTP/CLI。
-- `application`：组织用例流程与任务服务。
-- `infrastructure`：封装 LLM、工具、存储、配置等外部系统。
-- `interfaces`：提供 CLI/FastAPI 入口，将外部输入映射到应用层。
-- `bootstrap`：统一进行依赖注入与装配。
-
-这种分层方式能降低耦合，避免“入口层逻辑反向污染核心流程”。
+分层规则：依赖单向向下，domain 不依赖 infrastructure，interfaces 不包含业务逻辑。
 
 ## 快速开始
 
-### 1) 安装依赖
-
 ```bash
+# 1. 安装依赖
 python -m venv .venv
 source .venv/bin/activate
 pip install -r backend/requirements.txt
-```
 
-### 2) 配置环境变量
-
-```bash
+# 2. 配置
 cp .env.example .env
-```
+# 编辑 .env，填写 LLM_API_KEY（必填）
 
-编辑 `.env`，至少填好：
-
-```env
-LLM_API_KEY=your_api_key_here
-LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
-LLM_MODEL=qwen-max
-LLM_MAX_ITERATIONS=20
-LLM_TEMPERATURE=0.7
-```
-
-说明：
-- `LLM_API_KEY` 必填。
-- 其余字段可省略，`start.sh` 会提供默认值。
-
-### 3) 启动服务
-
-```bash
+# 3. 启动
 ./start.sh
+# 访问 http://localhost:8765
 ```
 
-默认地址：
-- http://127.0.0.1:8765
-- 局域网访问：`start.sh` 使用 `0.0.0.0:8765`
+### 环境变量
 
-## CLI 模式
+| 变量 | 必填 | 默认值 | 说明 |
+|------|------|--------|------|
+| `LLM_API_KEY` | 是 | - | LLM API 密钥 |
+| `LLM_BASE_URL` | 否 | `https://dashscope.aliyuncs.com/compatible-mode/v1` | API 地址 |
+| `LLM_MODEL` | 否 | `qwen-max` | 模型名称 |
+| `LLM_MAX_ITERATIONS` | 否 | `20` | 最大迭代轮数 |
+| `LLM_TEMPERATURE` | 否 | `0.7` | 采样温度 |
+| `PORT` | 否 | `8765` | 服务端口 |
+
+### CLI 模式
 
 ```bash
 PYTHONPATH=backend python -m src.interfaces.cli.main
 ```
 
-适合调试引擎行为与工具调用，不依赖前端。
+## 添加工具
+
+在 `backend/src/infrastructure/tools/builtin/` 下新建文件即可：
+
+```python
+from pydantic import BaseModel, Field
+from src.infrastructure.tools.base import Tool
+
+class MyTool(Tool):
+    name = "my_tool"
+    description = "工具描述"
+
+    class Input(BaseModel):
+        query: str = Field(description="查询内容")
+
+    def execute(self, args: Input) -> str:
+        return f"结果: {args.query}"
+```
+
+在 `config.yaml` 的 `tools` 列表中启用：
+
+```yaml
+tools:
+  - name: my_tool
+    enabled: true
+```
+
+无需修改注册逻辑，框架通过 `__init_subclass__` 自动发现。
+
+## 添加 MCP 服务
+
+在 `config.yaml` 的 `mcp.servers` 中配置：
+
+```yaml
+mcp:
+  servers:
+    # HTTP 远程服务
+    amap-maps:
+      type: "http"
+      url: "https://mcp.amap.com/mcp?key=YOUR_KEY"
+
+    # 本地 stdio 进程（自动管理生命周期）
+    playwright:
+      type: "http"
+      command: "npx"
+      args: ["-y", "@playwright/mcp@latest", "--headless"]
+      url: "http://localhost/mcp"
+      ready_timeout: 120
+```
+
+启动时自动发现所有子工具并注册到延迟加载目录。Agent 通过 `load_mcp_tools` 按需加载 schema 后调用；即使跳过加载步骤，直接调用也会自动激活。
+
+## API
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `GET` | `/` | Web 面板 |
+| `POST` | `/api/ask` | 提交问题（自动注入已上传文件路径） |
+| `GET` | `/api/runs?limit=500` | 按轮次返回事件 |
+| `GET` | `/api/packets?limit=400` | 原始事件列表 |
+| `GET` | `/api/groups?limit=400` | 按问题分组 |
+| `GET` | `/api/tasks/{task_id}` | 查询异步任务状态 |
+| `POST` | `/api/upload` | 上传文件（multipart/form-data） |
+| `GET` | `/api/files` | 列出已上传文件 |
+| `POST` | `/api/clear` | 清空日志、任务、会话 |
+
+## 日志与可观测
+
+事件以 JSONL 格式落盘到 `logs/packets.jsonl`，每条记录包含：
+
+- `type`：`user` / `llm_request` / `llm_response` / `tool` / `agent`
+- `iteration`：当前迭代轮次
+- 完整的请求/响应/工具调用数据
+
+通过 `config.yaml` 的 `display` 段控制输出行为：
+
+```yaml
+display:
+  packet_log_mode: "both"    # json / readable / both
+  packet_log_file: "logs/packets.jsonl"
+  json_pretty: true
+```
 
 ## 测试
 
 ```bash
-PYTHONPATH=backend pytest -q backend/tests
+PYTHONPATH=backend pytest backend/tests/ -v
 ```
 
-当前测试覆盖：
-- engine 主流程
-- 工具注册与执行
-- MCP 工具行为（stdio/http）
-- 日志读取与分组
-- 任务服务提交/清理行为
+覆盖范围：ReAct 引擎主循环、工具注册与执行、MCP 协议适配（stdio/HTTP）、日志读写与分组、HTTP API、任务服务。
 
-## API 概览
+## 技术栈
 
-- `GET /`：前端主页
-- `GET /api/runs?limit=...`：按轮次返回事件
-- `GET /api/packets?limit=...`：原始 packet 列表
-- `GET /api/groups?limit=...&merge_same_question=true`：按问题分组
-- `POST /api/ask`：提交问题
-- `GET /api/tasks/{task_id}`：查询异步任务状态
-- `POST /api/clear`：清空日志与任务状态并重置会话
-
-## 日志与可观测性
-
-日志行为由 `backend/config.yaml` 的 `display` 段控制：
-- `packet_log_mode`: `json` / `readable` / `both`
-- `json_pretty`: 是否美化 JSON
-- `packet_log_file`: JSONL 落盘路径（默认 `logs/packets.jsonl`）
-
-## 常见问题
-
-### 1) 新开终端看不到 `LLM_API_KEY`
-
-这是正常的：`.env` 是在 `start.sh` 运行时加载，不会自动注入所有 shell 会话。
-
-### 2) `ModuleNotFoundError: fastapi` / `openai`
-
-先激活虚拟环境并安装依赖：
-
-```bash
-source .venv/bin/activate
-pip install -r backend/requirements.txt
-```
-
-### 3) 点击“清空历史”后模型仍记得旧上下文
-
-已修复：`/api/clear` 会调用引擎 `reset_session()`，清空会话历史。
-
-## 安全建议
-
-- 不要把真实 API Key 提交到仓库。
-- `.env` 已被 `.gitignore` 忽略，请仅在本地保存。
-- Bash 工具有执行风险，生产环境建议加白名单策略与审批机制。
-
-## 变更管理
-
-本仓库使用 OpenSpec 风格管理架构变更：
-- `openspec/changes/*`：变更 proposal/tasks/spec
-- `openspec/specs/*`：稳定规范
-
-## 许可证
-
-当前仓库未单独声明 LICENSE。若用于团队协作，建议尽快补充。
+- **语言**：Python 3.10+
+- **Web**：FastAPI + Uvicorn
+- **LLM**：OpenAI Compatible SDK
+- **工具参数**：Pydantic v2
+- **PDF 解析**：PyMuPDF
+- **前端**：原生 HTML/CSS/JS（无构建工具）
+- **测试**：pytest

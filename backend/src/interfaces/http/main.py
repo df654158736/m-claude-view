@@ -4,7 +4,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from fastapi import Body, FastAPI, HTTPException, Query
+from fastapi import Body, FastAPI, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -14,6 +14,7 @@ from src.infrastructure.storage.packet_log_repo import build_runs, clear_packet_
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 FRONTEND_DIR = REPO_ROOT / "frontend"
+UPLOAD_DIR = REPO_ROOT / "uploads"
 
 
 def create_app(log_path: Path, agent_service) -> FastAPI:
@@ -61,8 +62,47 @@ def create_app(log_path: Path, agent_service) -> FastAPI:
         question = str(payload.get("question", "")).strip()
         if not question:
             raise HTTPException(status_code=400, detail="question is required")
+        # Auto-inject uploaded file context
+        if UPLOAD_DIR.exists():
+            files = [f for f in sorted(UPLOAD_DIR.iterdir()) if f.is_file()]
+            if files:
+                file_lines = "\n".join(f"- {f.name}: {f.resolve()}" for f in files)
+                question = (
+                    f"[用户已上传以下文件，可通过 read_file 工具读取]\n{file_lines}\n\n"
+                    f"{question}"
+                )
         task_id = agent_service.submit(question)
         return JSONResponse({"ok": True, "task_id": task_id}, headers={"Cache-Control": "no-store"})
+
+    @app.post("/api/upload")
+    async def api_upload(file: UploadFile) -> JSONResponse:
+        if not file.filename:
+            raise HTTPException(status_code=400, detail="No file provided")
+        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+        safe_name = Path(file.filename).name
+        dest = UPLOAD_DIR / safe_name
+        content = await file.read()
+        dest.write_bytes(content)
+        return JSONResponse({
+            "ok": True,
+            "filename": safe_name,
+            "path": str(dest.resolve()),
+            "size": len(content),
+        })
+
+    @app.get("/api/files")
+    def api_files() -> JSONResponse:
+        if not UPLOAD_DIR.exists():
+            return JSONResponse({"files": []})
+        files = []
+        for f in sorted(UPLOAD_DIR.iterdir()):
+            if f.is_file():
+                files.append({
+                    "name": f.name,
+                    "path": str(f.resolve()),
+                    "size": f.stat().st_size,
+                })
+        return JSONResponse({"files": files})
 
     @app.post("/api/clear")
     def api_clear() -> JSONResponse:

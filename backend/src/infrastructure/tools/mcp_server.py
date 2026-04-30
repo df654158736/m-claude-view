@@ -99,6 +99,79 @@ class MCPServerTool(Tool):
             self.close()
             return f"Error: MCP protocol failed: {e}"
 
+    def list_tools(self, timeout: int = 30) -> list[dict]:
+        """Call MCP ``tools/list`` and return the list of tool descriptors.
+
+        Each descriptor contains ``name``, ``description`` and ``inputSchema``.
+        Works for both stdio and http transports.
+        """
+        deadline = time.monotonic() + timeout
+        if self.server_type == "http":
+            self._ensure_http_session(deadline)
+            result = self._http_request("tools/list", {}, deadline)
+        else:
+            proc = self._ensure_stdio_session(deadline)
+            result = self._stdio_request(proc, "tools/list", {}, deadline)
+        if "error" in result:
+            raise ValueError(
+                f"MCP tools/list failed: {json.dumps(result['error'], ensure_ascii=False)}"
+            )
+        return result.get("result", {}).get("tools", [])
+
+    def call_tool(self, tool_name: str, arguments: dict, timeout: int = 60) -> str:
+        """Call MCP ``tools/call`` for a specific tool and return the JSON result string.
+
+        Includes the playwright ``browser_navigate`` snapshot follow-up logic
+        for the http transport.
+        """
+        deadline = time.monotonic() + timeout
+        if self.server_type == "http":
+            self._ensure_http_session(deadline)
+            result = self._http_request(
+                "tools/call",
+                {"name": tool_name, "arguments": arguments},
+                deadline,
+            )
+            # Playwright browser_navigate snapshot follow-up (same logic as _execute_http)
+            if (
+                tool_name == "browser_navigate"
+                and "result" in result
+                and result["result"].get("status") == "accepted"
+            ):
+                snapshot_result = None
+                for _ in range(3):
+                    try:
+                        snapshot = self._http_request(
+                            "tools/call",
+                            {"name": "browser_snapshot", "arguments": {}},
+                            deadline,
+                        )
+                        if "result" in snapshot:
+                            snapshot_result = snapshot["result"]
+                            break
+                    except (TimeoutError, urllib.error.URLError, ValueError):
+                        time.sleep(0.7)
+                        continue
+                if snapshot_result is not None:
+                    result["result"]["followup_snapshot"] = snapshot_result
+                else:
+                    result["result"]["note"] = (
+                        "navigation accepted; no immediate snapshot was returned"
+                    )
+        else:
+            proc = self._ensure_stdio_session(deadline)
+            result = self._stdio_request(
+                proc,
+                "tools/call",
+                {"name": tool_name, "arguments": arguments},
+                deadline,
+            )
+        if "error" in result:
+            raise ValueError(
+                f"MCP tools/call failed: {json.dumps(result['error'], ensure_ascii=False)}"
+            )
+        return json.dumps(result.get("result", {}), ensure_ascii=False, indent=2)
+
     def close(self) -> None:
         if not self._proc:
             return

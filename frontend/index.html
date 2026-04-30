@@ -30,10 +30,20 @@
         <input id="limitInput" type="number" value="500" min="100" step="50">
       </label>
       <input id="questionInput" type="text" placeholder="输入问题并发送给模型">
+      <input id="fileInput" type="file" multiple hidden>
+      <button id="uploadBtn" class="upload">上传文件</button>
       <button id="askBtn" class="primary">发送</button>
       <button id="refreshBtn">刷新</button>
       <button id="pollBtn">暂停自动刷新</button>
       <button id="clearBtn" class="danger">清空</button>
+    </div>
+
+    <div id="fileBar" class="file-bar" hidden>
+      <div class="file-bar-head">
+        <span class="file-bar-label">已上传文件</span>
+        <span id="fileCount" class="muted"></span>
+      </div>
+      <div id="fileList" class="file-list"></div>
     </div>
 
     <div class="task-bar">
@@ -68,6 +78,7 @@
         <div class="panel-actions">
           <button id="expandAllBtn" class="mini">全部展开</button>
           <button id="collapseAllBtn" class="mini">全部折叠</button>
+          <button id="copyJsonBtn" class="mini">复制</button>
         </div>
       </div>
       <div id="jsonTree" class="scroll json-tree">点击时间线中的事件查看详情</div>

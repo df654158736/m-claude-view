@@ -42,13 +42,28 @@ def print_startup_report(config, engine, *, log_path=None, host=None, port=None)
 
     # Tools
     tools = engine.tool_registry.summary()
-    print(f"[Tools] {len(tools)} registered")
-    for t in tools:
-        req = ", ".join(t["required"]) if t["required"] else "-"
-        all_params = ", ".join(t["params"]) if t["params"] else "-"
+    active_tools = [t for t in tools if "name" in t]
+    print(f"[Tools] {len(active_tools)} registered")
+    for t in active_tools:
+        req = ", ".join(t["required"]) if t.get("required") else "-"
+        all_params = ", ".join(t["params"]) if t.get("params") else "-"
         print(f"  - {t['name']:20s} [{t['type']}]")
         print(f"    {t['description'][:60]}")
         print(f"    params: {all_params}  required: {req}")
+
+    # Deferred MCP tools
+    catalog = engine.tool_registry.get_mcp_catalog()
+    if catalog:
+        print(f"\n[MCP Deferred] {len(catalog)} tools available via load_mcp_tools")
+        by_server: dict[str, list[str]] = {}
+        for entry in catalog:
+            by_server.setdefault(entry["server"], []).append(entry["name"])
+        for server, names in by_server.items():
+            print(f"  {server}: {len(names)} tools")
+            for name in names[:5]:
+                print(f"    - {name}")
+            if len(names) > 5:
+                print(f"    ... and {len(names) - 5} more")
     print()
 
     # Display / Log
