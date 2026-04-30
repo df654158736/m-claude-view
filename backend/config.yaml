@@ -24,6 +24,9 @@ tools:
   - name: playwright_mcp
     enabled: true
     timeout: 180
+  - name: amap-maps_mcp
+    enabled: true
+    timeout: 60
 
 mcp:
   servers:
@@ -37,3 +40,6 @@ mcp:
       url: "http://localhost/mcp"
       ready_timeout: 120
       env: {}
+    amap-maps:
+      type: "http"
+      url: "https://mcp.amap.com/mcp?key=24d0285732c273195acb978dcad0e5f6"

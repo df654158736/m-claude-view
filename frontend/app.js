@@ -182,11 +182,35 @@ function renderTimeline() {
   }
 }
 
-function makeValueNode(value) {
+function isBase64Image(value) {
+  return typeof value === 'string' && value.length > 200 && /^[A-Za-z0-9+/]/.test(value);
+}
+
+function makeValueNode(value, key, parentObj) {
+  if (key === 'data' && parentObj && parentObj.type === 'image' && isBase64Image(value)) {
+    const mime = parentObj.mimeType || 'image/png';
+    const wrap = document.createElement('div');
+    wrap.className = 'val-image-wrap';
+    const img = document.createElement('img');
+    img.src = 'data:' + mime + ';base64,' + value;
+    img.className = 'val-image';
+    img.alt = 'screenshot';
+    wrap.appendChild(img);
+    const info = document.createElement('span');
+    info.className = 'val-string';
+    info.textContent = '"(base64 image, ' + Math.round(value.length / 1024) + ' KB)"';
+    wrap.appendChild(info);
+    return wrap;
+  }
+
   const span = document.createElement('span');
   if (typeof value === 'string') {
     span.className = 'val-string';
-    span.textContent = JSON.stringify(value);
+    if (value.length > 2000) {
+      span.textContent = JSON.stringify(value.slice(0, 200) + '...(truncated, ' + value.length + ' chars)');
+    } else {
+      span.textContent = JSON.stringify(value);
+    }
   } else if (typeof value === 'number') {
     span.className = 'val-number';
     span.textContent = String(value);
@@ -202,7 +226,7 @@ function makeValueNode(value) {
   return span;
 }
 
-function buildJsonTree(value, key) {
+function buildJsonTree(value, key, parentObj) {
   const hasKey = key !== undefined && key !== null;
   const isArray = Array.isArray(value);
   const isObject = value && typeof value === 'object';
@@ -216,7 +240,7 @@ function buildJsonTree(value, key) {
       keyNode.textContent = key + ': ';
       line.appendChild(keyNode);
     }
-    line.appendChild(makeValueNode(value));
+    line.appendChild(makeValueNode(value, key, parentObj));
     return line;
   }
 
@@ -236,20 +260,40 @@ function buildJsonTree(value, key) {
 
   if (isArray) {
     value.forEach((item, index) => {
-      node.appendChild(buildJsonTree(item, '[' + index + ']'));
+      node.appendChild(buildJsonTree(item, '[' + index + ']', value));
     });
   } else {
     Object.keys(value).forEach((k) => {
-      node.appendChild(buildJsonTree(value[k], k));
+      node.appendChild(buildJsonTree(value[k], k, value));
     });
   }
 
   return details;
 }
 
+function tryParseJson(value) {
+  if (typeof value !== 'string' || value.length < 2) return value;
+  const first = value.trimStart()[0];
+  if (first !== '{' && first !== '[') return value;
+  try { return JSON.parse(value); } catch { return value; }
+}
+
+function deepParseJsonStrings(obj) {
+  if (Array.isArray(obj)) return obj.map(deepParseJsonStrings);
+  if (obj && typeof obj === 'object') {
+    const out = {};
+    for (const [k, v] of Object.entries(obj)) {
+      out[k] = typeof v === 'string' ? tryParseJson(v) : deepParseJsonStrings(v);
+    }
+    return out;
+  }
+  return obj;
+}
+
 function renderEventDetail(event) {
   jsonTreeEl.innerHTML = '';
-  jsonTreeEl.appendChild(buildJsonTree(event, null));
+  const expanded = deepParseJsonStrings(event);
+  jsonTreeEl.appendChild(buildJsonTree(expanded, null));
 }
 
 function render() {
